@@ -61,7 +61,10 @@ label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin:0 0
 /* ===================================================================== */
 /*  TEACHER VOTING SCREEN  — the "looking good" one                       */
 /* ===================================================================== */
-.kiosk{min-height:100vh;background:
+.brandlogo{height:42px;max-width:160px;object-fit:contain;display:block;margin:0 auto 8px;background:#fff;border-radius:8px;padding:3px;}
+.klogo{height:60px;max-width:200px;object-fit:contain;display:block;margin:0 auto 10px;background:#fff;border-radius:12px;padding:5px;box-shadow:0 4px 14px rgba(0,0,0,.25);}
+.fsbtn{position:absolute;top:14px;left:14px;z-index:5;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.28);color:#fff;border-radius:10px;padding:6px 11px;font-size:18px;line-height:1;}
+.kiosk{position:relative;min-height:100vh;background:
    radial-gradient(1200px 500px at 50% -10%, #1b3e86 0%, transparent 60%),
    linear-gradient(160deg,#0a1f44 0%, #0c2a5e 55%, #0a1f44 100%);
    color:#fff;display:flex;flex-direction:column;}
@@ -145,7 +148,7 @@ const USING_FB = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf("PASTE
 let db=null, _cfg=null, _tal=null;
 const cfgL=[], talL=[];
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
-function blankCfg(){return{election:{name:"Parliamentary Election",date:"",start:"",end:"",status:"open"},positions:[],candidates:{}};}
+function blankCfg(){return{election:{name:"Parliamentary Election",date:"",start:"",end:"",status:"open",logo:"",color:"#0a1f44"},positions:[],candidates:{}};}
 function blankTal(){return{counts:{}};}
 
 const Store={
@@ -197,6 +200,20 @@ function beep(){try{const x=new(window.AudioContext||window.webkitAudioContext)(
   g.gain.setValueAtTime(.0001,x.currentTime);g.gain.exponentialRampToValueAtTime(.4,x.currentTime+.01);
   g.gain.exponentialRampToValueAtTime(.0001,x.currentTime+.4);o.start();o.stop(x.currentTime+.42);
   if(navigator.vibrate)navigator.vibrate(130);}catch(e){}}
+/* darken/lighten a hex colour by percent (negative = darker) */
+function shade(hex,p){hex=(hex||"").replace("#","");if(hex.length!==6)return "#0a1f44";
+  let r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);
+  const f=t=>Math.max(0,Math.min(255,Math.round(t+t*p/100)));
+  return "#"+[f(r),f(g),f(b)].map(x=>x.toString(16).padStart(2,"0")).join("");}
+/* keep the phone screen awake during voting */
+let _wake=null;
+async function keepAwake(){try{if("wakeLock" in navigator){_wake=await navigator.wakeLock.request("screen");}}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&location.hash.indexOf("/v/")>-1)keepAwake();});
+/* enter full-screen kiosk mode (must be triggered by a tap) */
+function goFull(){const el=document.documentElement;
+  if(el.requestFullscreen)el.requestFullscreen().catch(()=>{});
+  else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();
+  keepAwake();}
 
 /* ===================================================================== *
  *  ROUTER
@@ -217,7 +234,10 @@ function viewDash(){
   const totalBallots=c.positions.reduce((s,p)=>s+totalFor(p.id),0);
   const totalCands=c.positions.reduce((s,p)=>s+cands(p.id).length,0);
   const tabs=[["setup","Election"],["positions","Positions & Links"],["students","Add Students"],["results","Analytics"]];
-  const top=`<div class="dash-top">
+  const brand=c.election.color||"#0a1f44";
+  const dlogo=c.election.logo?`<img src="${esc(c.election.logo)}" class="brandlogo">`:"";
+  const top=`<div class="dash-top" style="background:linear-gradient(135deg,${brand},${shade(brand,-30)})">
+    ${dlogo}
     <div class="sch">${esc(SCHOOL)}</div>
     <h1>${esc(c.election.name||"Election")}</h1>
     <div class="st">${c.election.status==="open"?"🟢 Voting OPEN":"🔴 Voting CLOSED"}${c.election.date?" · "+esc(c.election.date):""}${c.election.start?" · "+esc(c.election.start):""}${c.election.end?"–"+esc(c.election.end):""}</div>
@@ -243,6 +263,14 @@ function tabSetup(c){
     <label>Election name</label>
     <input id="e_name" value="${esc(c.election.name)}" onchange="updElection()"/>
     <div class="sp"></div>
+    <label>School logo — paste image link (optional)</label>
+    <input id="e_logo" value="${esc(c.election.logo||'')}" placeholder="https://… school logo" onchange="updElection()"/>
+    <div class="sp"></div>
+    <div class="row">
+      <div style="flex:1"><label>Brand colour</label><input id="e_color" type="color" value="${esc(c.election.color||'#0a1f44')}" onchange="updElection()" style="height:46px;padding:4px"/></div>
+      <div style="flex:2"><label>&nbsp;</label><div class="muted small">Used on the dashboard &amp; voting screen headers.</div></div>
+    </div>
+    <div class="sp"></div>
     <label>Date</label><input id="e_date" type="date" value="${esc(c.election.date)}" onchange="updElection()"/>
     <div class="sp"></div>
     <div class="row">
@@ -260,6 +288,7 @@ function tabSetup(c){
 function updElection(){
   const c=JSON.parse(JSON.stringify(_cfg||blankCfg()));
   c.election.name=val("e_name");c.election.date=val("e_date");c.election.start=val("e_start");c.election.end=val("e_end");
+  c.election.logo=val("e_logo");c.election.color=val("e_color");
   Store.save(c);
 }
 function toggleStatus(){const c=JSON.parse(JSON.stringify(_cfg||blankCfg()));c.election.status=c.election.status==="open"?"closed":"open";Store.save(c);render();}
@@ -369,8 +398,13 @@ function viewKiosk(pid){
   }).join("");
   const body=list.length?`<div class="k-list">${cardsHtml}</div>`
     :`<div class="k-empty"><div style="font-size:48px">🗳️</div><p>No candidates added for this position yet.</p></div>`;
-  $app.innerHTML=`<div class="kiosk">
+  const brand=c.election.color||"#0a1f44";
+  const klogo=c.election.logo?`<img src="${esc(c.election.logo)}" class="klogo">`:"";
+  const kbg=`radial-gradient(1200px 500px at 50% -10%, ${shade(brand,30)} 0%, transparent 60%), linear-gradient(160deg, ${shade(brand,-15)} 0%, ${shade(brand,10)} 55%, ${shade(brand,-15)} 100%)`;
+  $app.innerHTML=`<div class="kiosk" style="background:${kbg}">
+    <button class="fsbtn" onclick="goFull()" title="Full screen">⛶</button>
     <div class="k-head">
+      ${klogo}
       <div class="sch">${esc(SCHOOL)}</div>
       <div class="elc">${esc(c.election.name)}</div>
       <div class="pos">${esc(pos.name)}</div>
@@ -382,6 +416,7 @@ function viewKiosk(pid){
      <button class="kbtn cancel" onclick="pick('${pid}',null)">Cancel</button>
      <button class="kbtn" onclick="confirmVote('${pid}')">✓ Confirm Vote</button>
    </div>`:""}`;
+  keepAwake();
 }
 function pick(pid,sid){sel[pid]=sid||undefined;render();}
 function confirmVote(pid){
@@ -389,7 +424,7 @@ function confirmVote(pid){
   const c=_cfg||blankCfg();
   const pos=c.positions.find(p=>p.id===pid);
   const cand=cands(pid).find(s=>s.id===sid);
-  Store.vote(pid,sid); beep(); sel[pid]=undefined;
+  Store.vote(pid,sid); beep(); keepAwake(); sel[pid]=undefined;
   showSuccess(cand?cand.name:"",pos?pos.name:"",cand?cand.symimg:"");
   setTimeout(()=>{render();},RESET_DELAY);
 }
