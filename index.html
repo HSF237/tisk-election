@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>TISK English Medium School — Elections</title>
+
+<!-- ===== FIREBASE SDK (CDN) ===== -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+:root{
+  --navy:#0a1f44; --navy2:#15336b; --ink:#10213f; --bg:#eef1f7;
+  --emerald:#16a085; --emerald-d:#0f7c66; --gold:#f0b429; --purple:#7c4dff;
+  --line:#e2e8f3; --muted:#74829b; --danger:#e0455e; --card:#fff;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:var(--bg);}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);min-height:100vh;}
+.wrap{max-width:780px;margin:0 auto;padding:16px 16px 80px;}
+.muted{color:var(--muted);} .small{font-size:12px;} .center{text-align:center;}
+.sp{height:10px;} .sp-lg{height:20px;}
+
+/* ---------- generic UI ---------- */
+button{font-family:inherit;cursor:pointer;border:none;border-radius:12px;font-weight:700;transition:.12s;}
+.btn{padding:14px 16px;font-size:15px;background:var(--emerald);color:#fff;width:100%;}
+.btn:active{transform:scale(.98);} .btn.navy{background:var(--navy);} .btn.gold{background:var(--gold);color:#4a3700;}
+.btn.ghost{background:#fff;color:var(--navy);border:1px solid var(--line);} .btn.danger{background:var(--danger);}
+.btn.sm{padding:9px 13px;font-size:13px;width:auto;}
+input,select{font-family:inherit;font-size:15px;padding:12px;border:1px solid var(--line);border-radius:11px;width:100%;background:#fff;color:var(--ink);}
+label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin:0 0 5px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 2px 6px rgba(13,33,76,.04);}
+.row{display:flex;gap:8px;align-items:center;}
+.pill{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;background:#eaf4f1;color:var(--emerald-d);}
+.tag{font-size:11px;font-weight:700;color:var(--muted);}
+
+/* ---------- dashboard header ---------- */
+.dash-top{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;border-radius:0 0 22px 22px;padding:20px 18px 16px;}
+.dash-top .sch{font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.8;}
+.dash-top h1{margin:4px 0 2px;font-size:21px;font-weight:800;}
+.dash-top .st{font-size:12px;opacity:.85;}
+.tabs{display:flex;gap:6px;margin-top:14px;overflow-x:auto;}
+.tabs button{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.18);padding:9px 14px;border-radius:999px;font-size:13px;white-space:nowrap;}
+.tabs button.on{background:#fff;color:var(--navy);}
+.kbar{display:flex;gap:10px;margin-top:14px;}
+.kpi{flex:1;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:10px;text-align:center;}
+.kpi b{display:block;font-size:22px;} .kpi span{font-size:11px;opacity:.85;}
+
+/* ---------- position / list rows ---------- */
+.listrow{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:8px;gap:8px;}
+.listrow .nm{font-weight:700;} .listrow .sub{font-size:11px;color:var(--muted);}
+.linkbox{background:#0a1f44;color:#bfe9df;padding:9px 11px;border-radius:9px;font-size:11px;word-break:break-all;margin-top:6px;}
+
+/* ---------- results ---------- */
+.resbar{height:13px;background:#eef2f8;border-radius:999px;overflow:hidden;margin-top:6px;}
+.resbar>i{display:block;height:100%;background:linear-gradient(90deg,var(--emerald),var(--emerald-d));}
+.res-row{display:flex;justify-content:space-between;align-items:center;font-weight:700;}
+.winner{border:2px solid var(--gold);background:#fffaf0;}
+
+/* ===================================================================== */
+/*  TEACHER VOTING SCREEN  — the "looking good" one                       */
+/* ===================================================================== */
+.kiosk{min-height:100vh;background:
+   radial-gradient(1200px 500px at 50% -10%, #1b3e86 0%, transparent 60%),
+   linear-gradient(160deg,#0a1f44 0%, #0c2a5e 55%, #0a1f44 100%);
+   color:#fff;display:flex;flex-direction:column;}
+.k-head{padding:26px 20px 10px;text-align:center;}
+.k-head .sch{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#9fb6e6;}
+.k-head .elc{font-size:13px;color:#cdddff;margin-top:6px;}
+.k-head .pos{font-size:30px;font-weight:900;margin:8px 0 2px;letter-spacing:.5px;
+   background:linear-gradient(90deg,#fff,#bcd3ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.k-head .hint{display:inline-block;margin-top:10px;font-size:12px;color:#0a1f44;background:#ffd34d;padding:6px 14px;border-radius:999px;font-weight:800;}
+.k-list{padding:18px 16px 130px;display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:430px){.k-list{grid-template-columns:1fr;}}
+.kc{position:relative;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.14);
+   border-radius:22px;padding:20px 14px;text-align:center;backdrop-filter:blur(6px);overflow:hidden;transition:.15s;}
+.kc:active{transform:scale(.97);}
+.kc .ava{width:96px;height:96px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;
+   font-size:34px;font-weight:900;color:#0a1f44;overflow:hidden;
+   background:linear-gradient(135deg,#ffe9a8,#ffd34d);box-shadow:0 6px 18px rgba(0,0,0,.25);}
+.kc .ava img{width:100%;height:100%;object-fit:cover;}
+.kc .ava.sym{font-size:52px;background:linear-gradient(135deg,#ffffff,#dbe6ff);}
+.kc .ava.symimg{background:#fff;}
+.kc .ava.symimg img{width:100%;height:100%;object-fit:contain;padding:6px;}
+.kc .photochip{position:absolute;top:10px;left:10px;width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.6);}
+.kc .knm{font-size:19px;font-weight:800;}
+.kc .ksub{font-size:11px;color:#9fb6e6;margin-top:2px;}
+.kc.sel{border-color:#ffd34d;background:rgba(255,211,77,.14);box-shadow:0 0 0 4px rgba(255,211,77,.18);}
+.kc .chk{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:50%;background:#ffd34d;color:#0a1f44;
+   display:none;align-items:center;justify-content:center;font-weight:900;font-size:15px;}
+.kc.sel .chk{display:flex;}
+.kbarfix{position:fixed;left:0;right:0;bottom:0;max-width:780px;margin:0 auto;padding:14px 16px calc(16px + env(safe-area-inset-bottom));
+   display:flex;gap:10px;background:linear-gradient(0deg,rgba(10,31,68,.98),rgba(10,31,68,.6));backdrop-filter:blur(8px);}
+.kbtn{flex:2;padding:17px;border-radius:16px;font-size:17px;font-weight:900;background:#ffd34d;color:#0a1f44;}
+.kbtn.cancel{flex:1;background:rgba(255,255,255,.12);color:#fff;}
+.k-empty{margin:60px 20px;text-align:center;color:#bcd3ff;}
+
+/* success overlay */
+.success{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;
+   background:radial-gradient(900px 500px at 50% 30%, #16a085 0%, #0a1f44 70%);color:#fff;animation:fade .25s ease;}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.success .ring{width:130px;height:130px;border-radius:50%;background:#fff;color:#16a085;display:flex;align-items:center;justify-content:center;
+   font-size:74px;font-weight:900;animation:pop .45s cubic-bezier(.2,1.4,.4,1);box-shadow:0 12px 40px rgba(0,0,0,.3);}
+@keyframes pop{0%{transform:scale(0)}70%{transform:scale(1.12)}100%{transform:scale(1)}}
+.success h2{font-size:24px;margin:18px 0 4px;}
+.success .who{font-size:30px;font-weight:900;color:#ffd34d;margin:2px 0;}
+.success .as{font-size:14px;opacity:.9;}
+.success .next{margin-top:18px;font-size:13px;opacity:.7;}
+.confetti{position:absolute;top:-10px;width:9px;height:14px;border-radius:2px;animation:fall linear forwards;}
+@keyframes fall{to{transform:translateY(110vh) rotate(540deg);opacity:.9}}
+.closed-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#0a1f44,#15336b);color:#fff;text-align:center;padding:30px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ===================================================================== *
+ *  TISK ENGLISH MEDIUM SCHOOL — Election System
+ *  • Principal opens the base link  →  full dashboard (setup, analytics)
+ *  • Each position gives a link  →  teachers open it  →  locked voting screen
+ *  Offline on one device immediately; add Firebase to sync to principal's PC.
+ * ===================================================================== */
+
+/* ===== 1) PASTE FIREBASE CONFIG (optional, for multi-device) ===== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCzkyQKAchxidirnAkulw0n7uMAGBaBjmw",
+  authDomain: "tisk-election.firebaseapp.com",
+  projectId: "tisk-election",
+  storageBucket: "tisk-election.firebasestorage.app",
+  messagingSenderId: "450856834448",
+  appId: "1:450856834448:web:1bc0ba6b8e7efd11904f15"
+};
+
+const SCHOOL = "TISK English Medium School";
+const RESET_DELAY = 2600; // success screen duration (ms)
+
+/* Election symbols — each candidate gets one (kids vote by symbol). */
+const SYMBOLS = [
+  ["🪜","Ladder"],["⌚","Watch"],["⭐","Star"],["🚲","Bicycle"],["☂️","Umbrella"],
+  ["🪁","Kite"],["🔔","Bell"],["🏆","Cup"],["📖","Book"],["☀️","Sun"],
+  ["🍎","Apple"],["✈️","Aeroplane"],["🌹","Rose"],["🥁","Drum"],["🔑","Key"],
+  ["💡","Bulb"],["🎈","Balloon"],["🚀","Rocket"],["⚽","Football"],["🦋","Butterfly"],
+  ["🌳","Tree"],["🚗","Car"],["🍌","Banana"],["🦁","Lion"],["🎩","Hat"],["✏️","Pencil"]
+];
+function symEmoji(s){return s?String(s).split("|")[0]:"";}
+function symLabel(s){return s?(String(s).split("|")[1]||""):"";}
+function symbolOptions(){return SYMBOLS.map(x=>`<option value="${x[0]}|${x[1]}">${x[0]}  ${x[1]}</option>`).join("");}
+
+/* ===================================================================== *
+ *  STORAGE  (Firebase if configured, else localStorage)
+ * ===================================================================== */
+const USING_FB = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf("PASTE")===-1;
+let db=null, _cfg=null, _tal=null;
+const cfgL=[], talL=[];
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function blankCfg(){return{election:{name:"Parliamentary Election",date:"",start:"",end:"",status:"open"},positions:[],candidates:{}};}
+function blankTal(){return{counts:{}};}
+
+const Store={
+  init(){
+    if(USING_FB){
+      firebase.initializeApp(FIREBASE_CONFIG); db=firebase.firestore();
+      db.collection("app").doc("election").onSnapshot(d=>{
+        _cfg=d.exists?d.data():null;
+        if(!_cfg){db.collection("app").doc("election").set(blankCfg());return;}
+        cfgL.forEach(f=>f(_cfg));
+      });
+      db.collection("app").doc("tallies").onSnapshot(d=>{_tal=d.exists?d.data():blankTal();talL.forEach(f=>f(_tal));});
+    }else{
+      _cfg=JSON.parse(localStorage.getItem("tisk2_cfg")||"null")||blankCfg();
+      _tal=JSON.parse(localStorage.getItem("tisk2_tal")||"null")||blankTal();
+      addEventListener("storage",()=>{
+        _cfg=JSON.parse(localStorage.getItem("tisk2_cfg")||"null")||blankCfg();
+        _tal=JSON.parse(localStorage.getItem("tisk2_tal")||"null")||blankTal();
+        cfgL.forEach(f=>f(_cfg));talL.forEach(f=>f(_tal));
+      });
+      setTimeout(()=>{cfgL.forEach(f=>f(_cfg));talL.forEach(f=>f(_tal));},0);
+    }
+  },
+  onCfg(f){cfgL.push(f);if(_cfg)f(_cfg);},
+  onTal(f){talL.push(f);if(_tal)f(_tal);},
+  save(c){_cfg=c;if(USING_FB)db.collection("app").doc("election").set(c);else{localStorage.setItem("tisk2_cfg",JSON.stringify(c));cfgL.forEach(f=>f(c));}},
+  vote(pos,cand){
+    if(USING_FB){const inc=firebase.firestore.FieldValue.increment(1);
+      db.collection("app").doc("tallies").set({counts:{[pos]:{[cand]:inc}}},{merge:true});
+    }else{_tal=_tal||blankTal();_tal.counts[pos]=_tal.counts[pos]||{};_tal.counts[pos][cand]=(_tal.counts[pos][cand]||0)+1;
+      localStorage.setItem("tisk2_tal",JSON.stringify(_tal));talL.forEach(f=>f(_tal));}
+  },
+  reset(){const t=blankTal();if(USING_FB)db.collection("app").doc("tallies").set(t);else{localStorage.setItem("tisk2_tal",JSON.stringify(t));_tal=t;talL.forEach(f=>f(t));}}
+};
+
+/* ===================================================================== *
+ *  HELPERS
+ * ===================================================================== */
+const $app=document.getElementById("app");
+function go(h){location.hash=h;}
+function esc(s){return(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function initials(n){return(n||"?").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase();}
+function cands(pid){return(_cfg&&_cfg.candidates[pid])||[];}
+function votesFor(pid,cid){return(_tal&&_tal.counts[pid]&&_tal.counts[pid][cid])||0;}
+function totalFor(pid){const c=(_tal&&_tal.counts[pid])||{};return Object.values(c).reduce((a,b)=>a+b,0);}
+function linkFor(pid){return location.origin+location.pathname+"#/v/"+pid;}
+function beep(){try{const x=new(window.AudioContext||window.webkitAudioContext)();const o=x.createOscillator(),g=x.createGain();
+  o.connect(g);g.connect(x.destination);o.type="sine";o.frequency.value=900;
+  g.gain.setValueAtTime(.0001,x.currentTime);g.gain.exponentialRampToValueAtTime(.4,x.currentTime+.01);
+  g.gain.exponentialRampToValueAtTime(.0001,x.currentTime+.4);o.start();o.stop(x.currentTime+.42);
+  if(navigator.vibrate)navigator.vibrate(130);}catch(e){}}
+
+/* ===================================================================== *
+ *  ROUTER
+ * ===================================================================== */
+let dashTab="setup", sel={};
+addEventListener("hashchange",render);
+function render(){
+  const p=(location.hash||"#/").replace(/^#/,"").split("/").filter(Boolean);
+  if(p[0]==="v"&&p[1]) return viewKiosk(p[1]);   // teacher voting link (locked)
+  return viewDash();                              // principal dashboard
+}
+
+/* ===================================================================== *
+ *  PRINCIPAL DASHBOARD
+ * ===================================================================== */
+function viewDash(){
+  const c=_cfg||blankCfg();
+  const totalBallots=c.positions.reduce((s,p)=>s+totalFor(p.id),0);
+  const totalCands=c.positions.reduce((s,p)=>s+cands(p.id).length,0);
+  const tabs=[["setup","Election"],["positions","Positions & Links"],["students","Add Students"],["results","Analytics"]];
+  const top=`<div class="dash-top">
+    <div class="sch">${esc(SCHOOL)}</div>
+    <h1>${esc(c.election.name||"Election")}</h1>
+    <div class="st">${c.election.status==="open"?"🟢 Voting OPEN":"🔴 Voting CLOSED"}${c.election.date?" · "+esc(c.election.date):""}${c.election.start?" · "+esc(c.election.start):""}${c.election.end?"–"+esc(c.election.end):""}</div>
+    <div class="kbar">
+      <div class="kpi"><b>${c.positions.length}</b><span>Positions</span></div>
+      <div class="kpi"><b>${totalCands}</b><span>Candidates</span></div>
+      <div class="kpi"><b>${totalBallots}</b><span>Votes cast</span></div>
+    </div>
+    <div class="tabs">${tabs.map(t=>`<button class="${dashTab===t[0]?'on':''}" onclick="setTab('${t[0]}')">${t[1]}</button>`).join("")}</div>
+  </div>`;
+  let body="";
+  if(dashTab==="setup") body=tabSetup(c);
+  if(dashTab==="positions") body=tabPositions(c);
+  if(dashTab==="students") body=tabStudents(c);
+  if(dashTab==="results") body=tabResults(c);
+  $app.innerHTML=top+`<div class="wrap">${body}</div>`;
+}
+function setTab(t){dashTab=t;render();}
+
+/* ---- Tab: Election setup ---- */
+function tabSetup(c){
+  return `<div class="card">
+    <label>Election name</label>
+    <input id="e_name" value="${esc(c.election.name)}" onchange="updElection()"/>
+    <div class="sp"></div>
+    <label>Date</label><input id="e_date" type="date" value="${esc(c.election.date)}" onchange="updElection()"/>
+    <div class="sp"></div>
+    <div class="row">
+      <div style="flex:1"><label>Start time</label><input id="e_start" type="time" value="${esc(c.election.start)}" onchange="updElection()"/></div>
+      <div style="flex:1"><label>End time</label><input id="e_end" type="time" value="${esc(c.election.end)}" onchange="updElection()"/></div>
+    </div>
+    <div class="sp-lg"></div>
+    ${c.election.status==="open"
+      ? `<button class="btn danger" onclick="toggleStatus()">⏹ Close Voting</button>`
+      : `<button class="btn" onclick="toggleStatus()">▶ Open Voting</button>`}
+    <p class="muted small">When closed, teacher links show "Voting closed" and no votes can be cast.</p>
+  </div>
+  <p class="muted small center">${USING_FB?"🟢 Connected — votes sync to your computer in real time.":"⚠️ Offline mode: add Firebase config (top of file) so teacher phones report back to you."}</p>`;
+}
+function updElection(){
+  const c=JSON.parse(JSON.stringify(_cfg||blankCfg()));
+  c.election.name=val("e_name");c.election.date=val("e_date");c.election.start=val("e_start");c.election.end=val("e_end");
+  Store.save(c);
+}
+function toggleStatus(){const c=JSON.parse(JSON.stringify(_cfg||blankCfg()));c.election.status=c.election.status==="open"?"closed":"open";Store.save(c);render();}
+function val(id){const e=document.getElementById(id);return e?e.value:"";}
+
+/* ---- Tab: Positions & Links ---- */
+function tabPositions(c){
+  const rows=c.positions.map(p=>{
+    const link=linkFor(p.id);
+    return `<div class="card">
+      <div class="res-row"><span class="nm">${esc(p.name)}</span><span class="pill">${cands(p.id).length} candidates</span></div>
+      <div class="linkbox">${esc(link)}</div>
+      <div class="sp"></div>
+      <div class="row">
+        <button class="btn sm" style="flex:1" onclick="copy('${esc(link)}')">📋 Copy link</button>
+        <button class="btn ghost sm" style="flex:1" onclick="go('#/v/${p.id}')">▶ Preview</button>
+        <button class="btn danger sm" onclick="delPos('${p.id}')">🗑</button>
+      </div>
+      <p class="muted small">Forward this link to the teacher handling <b>${esc(p.name)}</b>.</p>
+    </div>`;
+  }).join("")||`<p class="muted center">No positions yet. Add one below 👇</p>`;
+  return `<h3 style="margin:6px 2px">Positions</h3>${rows}
+    <div class="card">
+      <label>Add a position</label>
+      <div class="row">
+        <input id="p_name" placeholder="e.g. Head Boy" onkeydown="if(event.key==='Enter')addPos()"/>
+        <button class="btn sm" style="padding:12px 18px" onclick="addPos()">Add</button>
+      </div>
+    </div>`;
+}
+function addPos(){const n=val("p_name").trim();if(!n)return;const c=JSON.parse(JSON.stringify(_cfg||blankCfg()));
+  const id=uid();c.positions.push({id,name:n});c.candidates[id]=[];Store.save(c);render();}
+function delPos(id){if(!confirm("Remove this position and its candidates?"))return;
+  const c=JSON.parse(JSON.stringify(_cfg||blankCfg()));c.positions=c.positions.filter(p=>p.id!==id);delete c.candidates[id];Store.save(c);render();}
+
+/* ---- Tab: Add Students (candidates) ---- */
+function tabStudents(c){
+  if(c.positions.length===0) return `<div class="card center"><p class="muted">First add a position in the <b>Positions</b> tab, then add students here.</p></div>`;
+  const opts=c.positions.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
+  const groups=c.positions.map(p=>{
+    const list=cands(p.id).map(s=>`<div class="listrow">
+        <span class="row" style="gap:10px"><span class="kc-mini">${s.symimg?`<img src="${esc(s.symimg)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover">`:(s.symbol?`<span style="display:inline-flex;width:34px;height:34px;border-radius:50%;background:#eef3ff;align-items:center;justify-content:center;font-size:19px">${symEmoji(s.symbol)}</span>`:(s.photo?`<img src="${esc(s.photo)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover">`:`<span style="display:inline-flex;width:34px;height:34px;border-radius:50%;background:#ffe9a8;color:#0a1f44;align-items:center;justify-content:center;font-weight:800;font-size:13px">${initials(s.name)}</span>`))}</span><span><span class="nm">${esc(s.name)}</span><span class="sub">${s.symbol?esc(symLabel(s.symbol)):"no symbol"}</span></span></span>
+        <button class="btn danger sm" onclick="delStu('${p.id}','${s.id}')">Remove</button>
+      </div>`).join("")||`<p class="muted small">No students yet.</p>`;
+    return `<div class="card"><div class="res-row"><span class="nm">${esc(p.name)}</span><span class="pill">${cands(p.id).length}</span></div>${list}</div>`;
+  }).join("");
+  return `<div class="card">
+      <label>Add student / candidate</label>
+      <input id="s_name" placeholder="Student name"/>
+      <div class="sp"></div>
+      <label>Election symbol ★ (kids vote by this)</label>
+      <select id="s_symbol">${symbolOptions()}</select>
+      <div class="sp"></div>
+      <label>Or upload a custom symbol image — paste image link (optional)</label>
+      <input id="s_symimg" placeholder="https://… custom symbol image (overrides emoji)"/>
+      <div class="sp"></div>
+      <label>Candidate photo URL (optional)</label>
+      <input id="s_photo" placeholder="https://… leave blank for symbol"/>
+      <div class="sp"></div>
+      <label>Contesting for</label>
+      <select id="s_pos">${opts}</select>
+      <div class="sp"></div>
+      <button class="btn" onclick="addStu()">➕ Add student</button>
+    </div>
+    ${groups}`;
+}
+function addStu(){const n=val("s_name").trim();if(!n)return;const pid=val("s_pos");
+  const c=JSON.parse(JSON.stringify(_cfg||blankCfg()));c.candidates[pid]=c.candidates[pid]||[];
+  c.candidates[pid].push({id:uid(),name:n,photo:val("s_photo").trim(),symbol:val("s_symbol"),symimg:val("s_symimg").trim()});Store.save(c);render();}
+function delStu(pid,sid){const c=JSON.parse(JSON.stringify(_cfg||blankCfg()));
+  c.candidates[pid]=(c.candidates[pid]||[]).filter(x=>x.id!==sid);Store.save(c);render();}
+
+/* ---- Tab: Analytics / Results (principal only) ---- */
+function tabResults(c){
+  if(c.positions.length===0) return `<div class="card center"><p class="muted">No positions yet.</p></div>`;
+  const blocks=c.positions.map(p=>{
+    const list=cands(p.id).map(s=>({...s,v:votesFor(p.id,s.id)})).sort((a,b)=>b.v-a.v);
+    const total=list.reduce((s,x)=>s+x.v,0), max=list.length?list[0].v:0;
+    const rows=list.map(s=>{const pct=total?Math.round(s.v/total*100):0;const win=total>0&&s.v===max&&max>0;
+      return `<div class="card ${win?'winner':''}" style="padding:11px 13px;margin-bottom:8px">
+        <div class="res-row"><span>${win?'🏆 ':''}${symEmoji(s.symbol)?symEmoji(s.symbol)+' ':''}${esc(s.name)}</span><span>${s.v} <span class="muted small">· ${pct}%</span></span></div>
+        <div class="resbar"><i style="width:${pct}%"></i></div></div>`;
+    }).join("")||`<p class="muted small">No candidates.</p>`;
+    return `<h3 style="margin:14px 2px 6px">${esc(p.name)} <span class="muted small">· ${total} votes</span></h3>${rows}`;
+  }).join("");
+  return blocks+`<div class="card"><button class="btn danger" onclick="if(confirm('Reset ALL votes to zero?')){Store.reset();}">Reset all votes</button></div>`;
+}
+
+/* ---- small utils ---- */
+function copy(u){navigator.clipboard?navigator.clipboard.writeText(u).then(()=>toast("Link copied!"),()=>prompt("Copy:",u)):prompt("Copy:",u);}
+function toast(m){const t=document.createElement("div");t.textContent=m;t.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0a1f44;color:#fff;padding:11px 18px;border-radius:999px;z-index:99;font-weight:700;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.25)";document.body.appendChild(t);setTimeout(()=>t.remove(),1600);}
+
+/* ===================================================================== *
+ *  TEACHER VOTING SCREEN  (locked to one position)
+ * ===================================================================== */
+function viewKiosk(pid){
+  const c=_cfg||blankCfg();
+  const pos=c.positions.find(p=>p.id===pid);
+  if(!pos){$app.innerHTML=`<div class="closed-screen"><div><h2>Link not ready</h2><p class="muted" style="color:#bcd3ff">This voting station hasn't been set up yet.</p></div></div>`;return;}
+  if(c.election.status!=="open"){
+    $app.innerHTML=`<div class="closed-screen"><div><div style="font-size:54px">🔒</div><h2>Voting is closed</h2><p style="color:#bcd3ff">Please wait for the school to open voting.</p></div></div>`;return;}
+  const list=cands(pid);
+  const cur=sel[pid];
+  const cardsHtml=list.map(s=>{
+    const symE=symEmoji(s.symbol), symL=symLabel(s.symbol);
+    const hero = s.symimg?`<div class="ava symimg"><img src="${esc(s.symimg)}"></div>`
+      : (symE?`<div class="ava sym">${symE}</div>`
+      : (s.photo?`<div class="ava"><img src="${esc(s.photo)}"></div>`:`<div class="ava">${initials(s.name)}</div>`));
+    const photoChip=((s.symimg||symE)&&s.photo)?`<img class="photochip" src="${esc(s.photo)}">`:"";
+    return `<div class="kc ${cur===s.id?'sel':''}" onclick="pick('${pid}','${s.id}')">
+      <div class="chk">✓</div>${photoChip}${hero}<div class="knm">${esc(s.name)}</div><div class="ksub">${symL?"🗳️ "+esc(symL):"Tap to select"}</div></div>`;
+  }).join("");
+  const body=list.length?`<div class="k-list">${cardsHtml}</div>`
+    :`<div class="k-empty"><div style="font-size:48px">🗳️</div><p>No candidates added for this position yet.</p></div>`;
+  $app.innerHTML=`<div class="kiosk">
+    <div class="k-head">
+      <div class="sch">${esc(SCHOOL)}</div>
+      <div class="elc">${esc(c.election.name)}</div>
+      <div class="pos">${esc(pos.name)}</div>
+      <div class="hint">👆 Tap your choice, then Confirm</div>
+    </div>
+    ${body}
+  </div>
+  ${cur?`<div class="kbarfix">
+     <button class="kbtn cancel" onclick="pick('${pid}',null)">Cancel</button>
+     <button class="kbtn" onclick="confirmVote('${pid}')">✓ Confirm Vote</button>
+   </div>`:""}`;
+}
+function pick(pid,sid){sel[pid]=sid||undefined;render();}
+function confirmVote(pid){
+  const sid=sel[pid];if(!sid)return;
+  const c=_cfg||blankCfg();
+  const pos=c.positions.find(p=>p.id===pid);
+  const cand=cands(pid).find(s=>s.id===sid);
+  Store.vote(pid,sid); beep(); sel[pid]=undefined;
+  showSuccess(cand?cand.name:"",pos?pos.name:"",cand?cand.symbol:"");
+  setTimeout(()=>{render();},RESET_DELAY);
+}
+function showSuccess(name,position,symbol){
+  const ov=document.createElement("div");ov.className="success";
+  let conf="";const cols=["#ffd34d","#16a085","#7c4dff","#ff6b6b","#fff"];
+  for(let i=0;i<26;i++){const l=Math.random()*100,d=.4+Math.random()*.8,delay=Math.random()*.3,col=cols[i%cols.length];
+    conf+=`<span class="confetti" style="left:${l}%;background:${col};animation-duration:${d+1}s;animation-delay:${delay}s"></span>`;}
+  const symE=symEmoji(symbol);
+  ov.innerHTML=conf+`<div class="ring">${symE||"✓"}</div>
+    <h2>You have successfully voted</h2>
+    <div class="who">${esc(name)}</div>
+    <div class="as">${symLabel(symbol)?"("+esc(symLabel(symbol))+") ":""}as ${esc(position)}</div>
+    <div class="next">Refreshing for the next student…</div>`;
+  document.body.appendChild(ov);
+  setTimeout(()=>ov.remove(),RESET_DELAY-100);
+}
+
+/* ===================================================================== *
+ *  BOOT
+ * ===================================================================== */
+Store.init();
+Store.onCfg(()=>render());
+Store.onTal(()=>{const h=location.hash;if(h.indexOf("/v/")===-1||dashTab==="results")render();});
+render();
+</script>
+</body>
+</html>
