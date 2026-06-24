@@ -136,17 +136,7 @@ const FIREBASE_CONFIG = {
 const SCHOOL = "TISK English Medium School";
 const RESET_DELAY = 2600; // success screen duration (ms)
 
-/* Election symbols — each candidate gets one (kids vote by symbol). */
-const SYMBOLS = [
-  ["🪜","Ladder"],["⌚","Watch"],["⭐","Star"],["🚲","Bicycle"],["☂️","Umbrella"],
-  ["🪁","Kite"],["🔔","Bell"],["🏆","Cup"],["📖","Book"],["☀️","Sun"],
-  ["🍎","Apple"],["✈️","Aeroplane"],["🌹","Rose"],["🥁","Drum"],["🔑","Key"],
-  ["💡","Bulb"],["🎈","Balloon"],["🚀","Rocket"],["⚽","Football"],["🦋","Butterfly"],
-  ["🌳","Tree"],["🚗","Car"],["🍌","Banana"],["🦁","Lion"],["🎩","Hat"],["✏️","Pencil"]
-];
-function symEmoji(s){return s?String(s).split("|")[0]:"";}
-function symLabel(s){return s?(String(s).split("|")[1]||""):"";}
-function symbolOptions(){return SYMBOLS.map(x=>`<option value="${x[0]}|${x[1]}">${x[0]}  ${x[1]}</option>`).join("");}
+/* Candidates use an uploaded symbol image (paste image link). No emoji picker. */
 
 /* ===================================================================== *
  *  STORAGE  (Firebase if configured, else localStorage)
@@ -311,7 +301,7 @@ function tabStudents(c){
   const opts=c.positions.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
   const groups=c.positions.map(p=>{
     const list=cands(p.id).map(s=>`<div class="listrow">
-        <span class="row" style="gap:10px"><span class="kc-mini">${s.symimg?`<img src="${esc(s.symimg)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover">`:(s.symbol?`<span style="display:inline-flex;width:34px;height:34px;border-radius:50%;background:#eef3ff;align-items:center;justify-content:center;font-size:19px">${symEmoji(s.symbol)}</span>`:(s.photo?`<img src="${esc(s.photo)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover">`:`<span style="display:inline-flex;width:34px;height:34px;border-radius:50%;background:#ffe9a8;color:#0a1f44;align-items:center;justify-content:center;font-weight:800;font-size:13px">${initials(s.name)}</span>`))}</span><span><span class="nm">${esc(s.name)}</span><span class="sub">${s.symbol?esc(symLabel(s.symbol)):"no symbol"}</span></span></span>
+        <span class="row" style="gap:10px"><span class="kc-mini">${s.symimg?`<img src="${esc(s.symimg)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover">`:(s.photo?`<img src="${esc(s.photo)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover">`:`<span style="display:inline-flex;width:34px;height:34px;border-radius:50%;background:#ffe9a8;color:#0a1f44;align-items:center;justify-content:center;font-weight:800;font-size:13px">${initials(s.name)}</span>`)}</span><span><span class="nm">${esc(s.name)}</span><span class="sub">${s.symimg?"✓ symbol set":"no symbol image"}</span></span></span>
         <button class="btn danger sm" onclick="delStu('${p.id}','${s.id}')">Remove</button>
       </div>`).join("")||`<p class="muted small">No students yet.</p>`;
     return `<div class="card"><div class="res-row"><span class="nm">${esc(p.name)}</span><span class="pill">${cands(p.id).length}</span></div>${list}</div>`;
@@ -320,11 +310,8 @@ function tabStudents(c){
       <label>Add student / candidate</label>
       <input id="s_name" placeholder="Student name"/>
       <div class="sp"></div>
-      <label>Election symbol ★ (kids vote by this)</label>
-      <select id="s_symbol">${symbolOptions()}</select>
-      <div class="sp"></div>
-      <label>Or upload a custom symbol image — paste image link (optional)</label>
-      <input id="s_symimg" placeholder="https://… custom symbol image (overrides emoji)"/>
+      <label>Election symbol — paste image link (kids vote by this)</label>
+      <input id="s_symimg" placeholder="https://… symbol image (ladder, watch, etc.)"/>
       <div class="sp"></div>
       <label>Candidate photo URL (optional)</label>
       <input id="s_photo" placeholder="https://… leave blank for symbol"/>
@@ -338,7 +325,7 @@ function tabStudents(c){
 }
 function addStu(){const n=val("s_name").trim();if(!n)return;const pid=val("s_pos");
   const c=JSON.parse(JSON.stringify(_cfg||blankCfg()));c.candidates[pid]=c.candidates[pid]||[];
-  c.candidates[pid].push({id:uid(),name:n,photo:val("s_photo").trim(),symbol:val("s_symbol"),symimg:val("s_symimg").trim()});Store.save(c);render();}
+  c.candidates[pid].push({id:uid(),name:n,photo:val("s_photo").trim(),symimg:val("s_symimg").trim()});Store.save(c);render();}
 function delStu(pid,sid){const c=JSON.parse(JSON.stringify(_cfg||blankCfg()));
   c.candidates[pid]=(c.candidates[pid]||[]).filter(x=>x.id!==sid);Store.save(c);render();}
 
@@ -350,7 +337,7 @@ function tabResults(c){
     const total=list.reduce((s,x)=>s+x.v,0), max=list.length?list[0].v:0;
     const rows=list.map(s=>{const pct=total?Math.round(s.v/total*100):0;const win=total>0&&s.v===max&&max>0;
       return `<div class="card ${win?'winner':''}" style="padding:11px 13px;margin-bottom:8px">
-        <div class="res-row"><span>${win?'🏆 ':''}${symEmoji(s.symbol)?symEmoji(s.symbol)+' ':''}${esc(s.name)}</span><span>${s.v} <span class="muted small">· ${pct}%</span></span></div>
+        <div class="res-row"><span>${win?'🏆 ':''}${esc(s.name)}</span><span>${s.v} <span class="muted small">· ${pct}%</span></span></div>
         <div class="resbar"><i style="width:${pct}%"></i></div></div>`;
     }).join("")||`<p class="muted small">No candidates.</p>`;
     return `<h3 style="margin:14px 2px 6px">${esc(p.name)} <span class="muted small">· ${total} votes</span></h3>${rows}`;
@@ -374,13 +361,11 @@ function viewKiosk(pid){
   const list=cands(pid);
   const cur=sel[pid];
   const cardsHtml=list.map(s=>{
-    const symE=symEmoji(s.symbol), symL=symLabel(s.symbol);
     const hero = s.symimg?`<div class="ava symimg"><img src="${esc(s.symimg)}"></div>`
-      : (symE?`<div class="ava sym">${symE}</div>`
-      : (s.photo?`<div class="ava"><img src="${esc(s.photo)}"></div>`:`<div class="ava">${initials(s.name)}</div>`));
-    const photoChip=((s.symimg||symE)&&s.photo)?`<img class="photochip" src="${esc(s.photo)}">`:"";
+      : (s.photo?`<div class="ava"><img src="${esc(s.photo)}"></div>`:`<div class="ava">${initials(s.name)}</div>`);
+    const photoChip=(s.symimg&&s.photo)?`<img class="photochip" src="${esc(s.photo)}">`:"";
     return `<div class="kc ${cur===s.id?'sel':''}" onclick="pick('${pid}','${s.id}')">
-      <div class="chk">✓</div>${photoChip}${hero}<div class="knm">${esc(s.name)}</div><div class="ksub">${symL?"🗳️ "+esc(symL):"Tap to select"}</div></div>`;
+      <div class="chk">✓</div>${photoChip}${hero}<div class="knm">${esc(s.name)}</div><div class="ksub">Tap to select</div></div>`;
   }).join("");
   const body=list.length?`<div class="k-list">${cardsHtml}</div>`
     :`<div class="k-empty"><div style="font-size:48px">🗳️</div><p>No candidates added for this position yet.</p></div>`;
@@ -405,19 +390,19 @@ function confirmVote(pid){
   const pos=c.positions.find(p=>p.id===pid);
   const cand=cands(pid).find(s=>s.id===sid);
   Store.vote(pid,sid); beep(); sel[pid]=undefined;
-  showSuccess(cand?cand.name:"",pos?pos.name:"",cand?cand.symbol:"");
+  showSuccess(cand?cand.name:"",pos?pos.name:"",cand?cand.symimg:"");
   setTimeout(()=>{render();},RESET_DELAY);
 }
-function showSuccess(name,position,symbol){
+function showSuccess(name,position,symimg){
   const ov=document.createElement("div");ov.className="success";
   let conf="";const cols=["#ffd34d","#16a085","#7c4dff","#ff6b6b","#fff"];
   for(let i=0;i<26;i++){const l=Math.random()*100,d=.4+Math.random()*.8,delay=Math.random()*.3,col=cols[i%cols.length];
     conf+=`<span class="confetti" style="left:${l}%;background:${col};animation-duration:${d+1}s;animation-delay:${delay}s"></span>`;}
-  const symE=symEmoji(symbol);
-  ov.innerHTML=conf+`<div class="ring">${symE||"✓"}</div>
+  const ring=symimg?`<div class="ring"><img src="${esc(symimg)}" style="width:80%;height:80%;object-fit:contain"></div>`:`<div class="ring">✓</div>`;
+  ov.innerHTML=conf+ring+`
     <h2>You have successfully voted</h2>
     <div class="who">${esc(name)}</div>
-    <div class="as">${symLabel(symbol)?"("+esc(symLabel(symbol))+") ":""}as ${esc(position)}</div>
+    <div class="as">as ${esc(position)}</div>
     <div class="next">Refreshing for the next student…</div>`;
   document.body.appendChild(ov);
   setTimeout(()=>ov.remove(),RESET_DELAY-100);
