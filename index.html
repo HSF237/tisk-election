@@ -195,11 +195,17 @@ function cands(pid){return(_cfg&&_cfg.candidates[pid])||[];}
 function votesFor(pid,cid){return(_tal&&_tal.counts[pid]&&_tal.counts[pid][cid])||0;}
 function totalFor(pid){const c=(_tal&&_tal.counts[pid])||{};return Object.values(c).reduce((a,b)=>a+b,0);}
 function linkFor(pid){return location.origin+location.pathname+"#/v/"+pid;}
-function beep(){try{const x=new(window.AudioContext||window.webkitAudioContext)();const o=x.createOscillator(),g=x.createGain();
-  o.connect(g);g.connect(x.destination);o.type="sine";o.frequency.value=900;
-  g.gain.setValueAtTime(.0001,x.currentTime);g.gain.exponentialRampToValueAtTime(.4,x.currentTime+.01);
-  g.gain.exponentialRampToValueAtTime(.0001,x.currentTime+.4);o.start();o.stop(x.currentTime+.42);
-  if(navigator.vibrate)navigator.vibrate(130);}catch(e){}}
+function beep(){try{const x=new(window.AudioContext||window.webkitAudioContext)();
+  if(x.state==="suspended")x.resume();
+  function tone(freq,start,dur,peak){const o=x.createOscillator(),g=x.createGain();o.connect(g);g.connect(x.destination);
+    o.type="square";o.frequency.value=freq;
+    g.gain.setValueAtTime(.0001,x.currentTime+start);
+    g.gain.exponentialRampToValueAtTime(peak,x.currentTime+start+.008);
+    g.gain.exponentialRampToValueAtTime(.0001,x.currentTime+start+dur);
+    o.start(x.currentTime+start);o.stop(x.currentTime+start+dur+.03);}
+  /* loud, high rising double-beep so each vote is clearly announced */
+  tone(1320,0,.18,.75); tone(1760,0.15,.26,.85);
+  if(navigator.vibrate)navigator.vibrate([130,50,130]);}catch(e){}}
 /* darken/lighten a hex colour by percent (negative = darker) */
 function shade(hex,p){hex=(hex||"").replace("#","");if(hex.length!==6)return "#0a1f44";
   let r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);
