@@ -202,17 +202,18 @@ function beep(){try{const x=new(window.AudioContext||window.webkitAudioContext)(
   comp.threshold.value=-22; comp.knee.value=10; comp.ratio.value=12; comp.attack.value=.002; comp.release.value=.2;
   const master=x.createGain(); master.gain.value=1.0;
   comp.connect(master); master.connect(x.destination);
-  function tone(freq,start,dur,peak,type){const o=x.createOscillator(),g=x.createGain();
+  const DUR=0.90;  /* one long sustained BEEEEEP */
+  function layer(freq,peak,type){const o=x.createOscillator(),g=x.createGain();
     o.type=type; o.frequency.value=freq; o.connect(g); g.connect(comp);
-    const t=x.currentTime+start;
+    const t=x.currentTime;
     g.gain.setValueAtTime(.0001,t);
-    g.gain.exponentialRampToValueAtTime(peak,t+.006);
-    g.gain.exponentialRampToValueAtTime(.0001,t+dur);
-    o.start(t); o.stop(t+dur+.03);}
-  /* each "ding" layers square + detuned saw + an octave above = full, loud tone */
-  function ding(start){ tone(1320,start,.20,1,"square"); tone(1324,start,.20,.9,"sawtooth"); tone(2640,start,.17,.55,"square"); }
-  ding(0); ding(0.22); ding(0.44);           /* loud rising TRIPLE beep */
-  if(navigator.vibrate)navigator.vibrate([160,60,160,60,180]);}catch(e){}}
+    g.gain.exponentialRampToValueAtTime(peak,t+.012);   /* quick rise */
+    g.gain.setValueAtTime(peak,t+DUR-.07);              /* hold steady */
+    g.gain.exponentialRampToValueAtTime(.0001,t+DUR);   /* smooth tail */
+    o.start(t); o.stop(t+DUR+.04);}
+  /* single continuous tone, layered for a full loud beep (≈D6) */
+  layer(1175,1,"square"); layer(1176,.7,"sawtooth"); layer(587,.5,"sine");
+  if(navigator.vibrate)navigator.vibrate(800);}catch(e){}}
 /* darken/lighten a hex colour by percent (negative = darker) */
 function shade(hex,p){hex=(hex||"").replace("#","");if(hex.length!==6)return "#0a1f44";
   let r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);
